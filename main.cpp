@@ -56,13 +56,47 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
         }
     }
 
+    vector<seminar> available_seminars;
+    for (auto &seminar : seminars) {
+        int f_count = f_house_count[seminar.id];
+        if (f_count != seminar.capacity) {
+            available_seminars.push_back(seminar);
+        }
+    }
+
+    // for every unassigned student, create a pair<long, long> of f-house-id, s-house-id
+    // TODO- remember that the indices are not equivalent to student ids
+    vector<pair<long, long>> priorities;
+    priorities.resize(unassigned.size());
+
+    for (student &student : unassigned) {
+        auto f_house_id = student.priorities[0];
+        long s_house_id = -1;
+        for (int i = 1; i < student.priorities.size(); ++i) {
+            auto seminar = student.priorities[i];
+            auto f_value = f_house_count[seminar];
+            auto capacity = seminars[i].capacity;
+
+            if (f_value < capacity) {
+                s_house_id = seminar;
+                break;
+            }
+        }
+
+        // TODO: add l-houses
+        priorities[student.id] = make_pair(f_house_id, s_house_id);
+    }
+
+    vector<pair<long, long>> matching; // todo: get hopcroft karp matching here
+    assignments.insert(assignments.end(), matching.begin(), matching.end())
+
     cout << "Unmatched count: " << unassigned.size() << endl;
 
     return assignments;
 }
 
 int main() {
-    seminar seminar0(0l, 2);
+    seminar seminar0(0l, 0);
     seminar seminar1(1l, 1);
     seminar seminar2(2l, 2);
 
