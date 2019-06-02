@@ -88,24 +88,55 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
     }
 
     vector<pair<long, long>> matching; // todo: get hopcroft karp matching here
-    assignments.insert(assignments.end(), matching.begin(), matching.end())
+    assignments.insert(assignments.end(), matching.begin(), matching.end());
 
     cout << "Unmatched count: " << unassigned.size() << endl;
 
     return assignments;
 }
 
+pair<vector<student>, vector<seminar>> parseInput() {
+    int n, m;
+    cin >> n >> m;
+
+    // parse n seminars
+    vector<seminar> seminars;
+    long id;
+    int capacity;
+    for (int i = 0; i < n; ++i) {
+        cin >> id >> capacity;
+        seminars.emplace_back(id, capacity);
+    }
+
+    // parse m students
+    vector<student> students;
+    long student_id;
+    int preference_length;
+    for (int j = 0; j < m; ++j) {
+        cin >> student_id >> preference_length;
+        vector<long> preference_list;
+        preference_list.resize(preference_length);
+        int seminar_id;
+
+        for (int i = 0; i < preference_length; ++i) {
+             cin >> seminar_id;
+             preference_list[i] = seminar_id;
+        }
+
+        students.emplace_back(student_id, preference_list);
+    }
+
+    return make_pair(students, seminars);
+}
+
 int main() {
-    seminar seminar0(0l, 0);
-    seminar seminar1(1l, 1);
-    seminar seminar2(2l, 2);
+    auto input = parseInput();
+    auto result = computeGreedy(input.first, input.second);
 
-    student student0(0l, vector<long> { seminar0.id, seminar1.id });
-    student student1(1l, vector<long> { seminar1.id, seminar0.id });
-    student student2(2l, vector<long> { seminar2.id, seminar0.id });
+    cout << result.size() << endl;
+    for (auto matching : result) {
+        cout << matching.first << " " << matching.second << endl;
+    }
 
-    //auto result = computeGreedy(vector<student> { student0, student1, student2 }, vector<seminar> { seminar0, seminar1, seminar2 });
-    auto result = popularCHA(vector<student> { student0, student1, student2 }, vector<seminar> { seminar0, seminar1, seminar2 });
-
-    return 0;
+    return 1;
 }
