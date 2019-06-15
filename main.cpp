@@ -5,6 +5,7 @@
 #include "./model/student.h"
 #include "./model/seminar.h"
 #include "./model/bigraph.h"
+#include "./model/hungarian.hpp"
 
 using namespace std;
 using namespace models;
@@ -34,8 +35,8 @@ vector<pair<long, long>> computeGreedy(vector<student> students, vector<seminar>
     return assignments;
 }
 
-pair<vector<vector<int>>, vector<long>> getSeminarMapping(vector<seminar> &all, vector<seminar> &available) {
-    vector<vector<int>> seminar_mapping(all.size());
+pair<vector<vector<int>>, vector<long>> getSeminarMapping(long total_count, vector<seminar> &available) {
+    vector<vector<int>> seminar_mapping(total_count);
     vector<long> total_mapping;
     int counter = 0;
 
@@ -113,7 +114,7 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
 
     if (!unassigned.empty() && total_capacity_available > 0) {
         // Expand list of seminars by capacity
-        auto [mapping, total_mapping] = getSeminarMapping(seminars, available_seminars);
+        auto [mapping, total_mapping] = getSeminarMapping(seminars.size(), available_seminars);
 
         BipGraph graph(static_cast<int>(unassigned.size()), total_capacity_available);
         for (int i = 0; i < unassigned.size(); ++i) {
@@ -171,6 +172,61 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
     return assignments;
 }
 
+vector<pair<long, long>> computeHungarianMatching(const vector<student> &students, vector<seminar> &seminars) {
+    vector<pair<long, long>> assignments;
+
+    auto [mapping, total_mapping] = getSeminarMapping(seminars.size(), seminars);
+
+    auto row_length = total_mapping.size();
+    auto col_length = students.size();
+
+    vector<vector<int>> cost_matrix(col_length);
+
+    for (int i = 0; i < students.size(); ++i) {
+        auto &student = students[i];
+
+        // set default cost to max seminar count
+        vector<int> cost_row(row_length, seminars.size() + 1);
+
+        for (int j = 0; j < student.priorities.size(); ++j) {
+            auto pref = student.priorities[j];
+            auto mapped_indices = mapping[pref];
+
+            for (auto index: mapped_indices) {
+                cost_row[index] = j + 1;
+            }
+        }
+
+        cost_matrix[i] = cost_row;
+    }
+
+    auto matching = Hungarian::Solve(cost_matrix, Hungarian::MODE_MINIMIZE_COST);
+
+    // extract result
+    for (int k = 0; k < col_length; ++k) {
+        auto row = matching.assignment[k];
+
+        int matched_index = -1;
+        for (int i = 0; i < row_length; ++i) {
+            if (row[i] == 1) {
+                matched_index = i;
+                break;
+            }
+        }
+
+        if (matched_index != -1) {
+            auto mapped = total_mapping[matched_index];
+
+            assignments.emplace_back(k, mapped);
+        }
+    }
+
+    cerr << "Success: " << matching.success << endl;
+
+    return assignments;
+}
+
+
 pair<vector<student>, vector<seminar>> parseInput() {
     int n, m;
     cin >> n >> m;
@@ -207,7 +263,9 @@ pair<vector<student>, vector<seminar>> parseInput() {
 
 int main() {
     auto input = parseInput();
-    auto result = popularCHA(input.first, input.second);
+    auto result = computeHungarianMatching(input.first, input.second);
+
+    //auto result = popularCHA(input.first, input.second);
 
     cout << result.size() << endl;
     for (auto matching : result) {
