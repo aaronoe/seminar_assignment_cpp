@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "./model/student.h"
 #include "./model/seminar.h"
+#include "./model/bigraph.h"
 
 using namespace std;
 using namespace models;
@@ -33,6 +34,26 @@ vector<pair<long, long>> computeGreedy(vector<student> students, vector<seminar>
     return assignments;
 }
 
+pair<vector<vector<int>>, vector<long>> getSeminarMapping(vector<seminar> &all, vector<seminar> &available) {
+    vector<vector<int>> seminar_mapping(all.size());
+    vector<long> total_mapping;
+    int counter = 0;
+
+    for (seminar &seminar: available) {
+        vector<int> ids(seminar.capacity);
+
+        for (int i = 0; i < seminar.capacity; ++i) {
+            ids[i] = counter++;
+            total_mapping.push_back(seminar.id);
+        }
+
+        seminar_mapping[seminar.id] = ids;
+    }
+
+    return make_pair(seminar_mapping, total_mapping);
+}
+
+
 vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> seminars) {
     vector<int> f_house_count(seminars.size(), 0);
     vector<pair<long, long>> assignments;
@@ -57,17 +78,18 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
     }
 
     vector<seminar> available_seminars;
+    int total_capacity_available = 0;
     for (auto &seminar : seminars) {
         int f_count = f_house_count[seminar.id];
         if (f_count != seminar.capacity) {
             available_seminars.push_back(seminar);
+            total_capacity_available += seminar.capacity;
         }
     }
 
     // for every unassigned student, create a pair<long, long> of f-house-id, s-house-id
     // TODO- remember that the indices are not equivalent to student ids
-    vector<pair<long, long>> priorities;
-    priorities.resize(unassigned.size());
+    vector<pair<long, long>> priorities(students.size());
 
     for (student &student : unassigned) {
         auto f_house_id = student.priorities[0];
@@ -83,14 +105,68 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
             }
         }
 
-        // TODO: add l-houses
+        if (s_house_id == -1) {
+            // TODO: add l-houses
+        }
         priorities[student.id] = make_pair(f_house_id, s_house_id);
     }
 
-    vector<pair<long, long>> matching; // todo: get hopcroft karp matching here
-    assignments.insert(assignments.end(), matching.begin(), matching.end());
+    if (!unassigned.empty() && total_capacity_available > 0) {
+        // Expand list of seminars by capacity
+        auto [mapping, total_mapping] = getSeminarMapping(seminars, available_seminars);
 
-    cout << "Unmatched count: " << unassigned.size() << endl;
+        BipGraph graph(static_cast<int>(unassigned.size()), total_capacity_available);
+        for (int i = 0; i < unassigned.size(); ++i) {
+            auto student = unassigned[i];
+
+            // TODO: the algorithm starts counting at 1
+            auto prefs = priorities[student.id];
+            for (int id: mapping[prefs.first]) {
+                graph.addEdge(i + 1, id + 1);
+            }
+            for (int id: mapping[prefs.second]) {
+                graph.addEdge(i + 1, id + 1);
+            }
+        }
+
+        vector<pair<long, long>> matching = graph.hopcroftKarp();
+        for (auto &match: matching) {
+            auto first = match.first - 1;
+            auto real_seminar = total_mapping[match.second - 1];
+            cerr << "Mapped Value: " << match.second - 1 << " - Real: " << total_mapping[match.second - 1] << endl;
+
+            assignments.emplace_back(first, real_seminar);
+        }
+
+
+        vector<long> capacity_list(seminars.size());
+        // create new capacity list
+        for (auto &[_, seminar_id]: assignments) {
+            capacity_list[seminar_id] = capacity_list[seminar_id] + 1;
+        }
+
+        // check if students can be assigned to a better match
+        for (auto &assignment : assignments) {
+            auto [student_id, seminar_id] = assignment;
+
+            auto student = students[student_id];
+            auto seminar = seminars[seminar_id];
+
+            for (auto pref: student.priorities) {
+                if (pref == seminar_id) break;
+
+                auto current_capacity = capacity_list[seminar_id];
+                bool can_assign_more = current_capacity < seminar.capacity;
+                if (can_assign_more) {
+                    cerr << "Better match found" << endl;
+                    capacity_list[seminar_id] = current_capacity + 1;
+                    assignment = make_pair(student_id, pref);
+                }
+            }
+        }
+    }
+
+    cerr << "Unmatched count: " << unassigned.size() << endl;
 
     return assignments;
 }
@@ -131,7 +207,7 @@ pair<vector<student>, vector<seminar>> parseInput() {
 
 int main() {
     auto input = parseInput();
-    auto result = computeGreedy(input.first, input.second);
+    auto result = popularCHA(input.first, input.second);
 
     cout << result.size() << endl;
     for (auto matching : result) {
