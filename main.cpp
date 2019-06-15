@@ -1,3 +1,5 @@
+#include <random>
+
 #include <iostream>
 #include <vector>
 #include <map>
@@ -15,7 +17,7 @@ using namespace models;
  * @return Matching as vector of matched pairs
  */
 vector<pair<long, long>> computeGreedy(vector<student> students, vector<seminar> seminars) {
-    std::random_shuffle(students.begin(), students.end());
+    std::shuffle(students.begin(), students.end(), std::mt19937(std::random_device()()));
     vector<int> assignment_count(seminars.size(), 0);
     vector<pair<long, long>> assignments;
 
@@ -36,12 +38,12 @@ vector<pair<long, long>> computeGreedy(vector<student> students, vector<seminar>
 }
 
 pair<vector<vector<int>>, vector<long>> getSeminarMapping(long total_count, vector<seminar> &available) {
-    vector<vector<int>> seminar_mapping(total_count);
+    vector<vector<int>> seminar_mapping(static_cast<unsigned long>(total_count));
     vector<long> total_mapping;
     int counter = 0;
 
     for (seminar &seminar: available) {
-        vector<int> ids(seminar.capacity);
+        vector<int> ids(static_cast<unsigned long>(seminar.capacity));
 
         for (int i = 0; i < seminar.capacity; ++i) {
             ids[i] = counter++;
@@ -186,14 +188,14 @@ vector<pair<long, long>> computeHungarianMatching(const vector<student> &student
         auto &student = students[i];
 
         // set default cost to max seminar count
-        vector<int> cost_row(row_length, seminars.size() + 1);
+        vector<int> cost_row(row_length, INT32_MAX);
 
         for (int j = 0; j < student.priorities.size(); ++j) {
             auto pref = student.priorities[j];
             auto mapped_indices = mapping[pref];
 
             for (auto index: mapped_indices) {
-                cost_row[index] = j + 1;
+                cost_row[index] = j;
             }
         }
 
@@ -202,6 +204,7 @@ vector<pair<long, long>> computeHungarianMatching(const vector<student> &student
 
     auto matching = Hungarian::Solve(cost_matrix, Hungarian::MODE_MINIMIZE_COST);
 
+    if (!matching.success) return assignments;
     // extract result
     for (int k = 0; k < col_length; ++k) {
         auto row = matching.assignment[k];
@@ -247,7 +250,7 @@ pair<vector<student>, vector<seminar>> parseInput() {
     for (int j = 0; j < m; ++j) {
         cin >> student_id >> preference_length;
         vector<long> preference_list;
-        preference_list.resize(preference_length);
+        preference_list.resize(static_cast<unsigned long>(preference_length));
         int seminar_id;
 
         for (int i = 0; i < preference_length; ++i) {
