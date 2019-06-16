@@ -59,8 +59,10 @@ pair<vector<vector<int>>, vector<long>> getSeminarMapping(long total_count, vect
 
 
 vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> seminars) {
+    auto max_seminar_count = seminars.size();
     vector<int> f_house_count(seminars.size(), 0);
     vector<pair<long, long>> assignments;
+    vector<long> capacity_list(seminars.size());
 
     for (auto &student : students) {
         auto first = student.priorities[0];
@@ -76,6 +78,7 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
         int f_count = f_house_count[first];
         if (f_count <= seminars[first].capacity) {
             assignments.emplace_back(student.id, first);
+            capacity_list[first] = capacity_list[first] + 1;
         } else {
             unassigned.push_back(student);
         }
@@ -110,7 +113,12 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
         }
 
         if (s_house_id == -1) {
-            // TODO: add l-houses
+            auto l_house_id = seminars.size();
+            auto l_house = seminar(l_house_id, 1);
+            total_capacity_available += 1;
+            seminars.push_back(l_house);
+            available_seminars.push_back(l_house);
+            s_house_id = l_house_id;
         }
         priorities[student.id] = make_pair(f_house_id, s_house_id);
     }
@@ -134,6 +142,13 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
         }
 
         vector<pair<long, long>> matching = graph.hopcroftKarp();
+        // check if matching is agent complete
+        if (matching.size() != unassigned.size()) {
+            cerr << "matching is not agent complete" << endl;
+            assignments.clear();
+            return assignments;
+        }
+
         for (auto &match: matching) {
             auto first = match.first - 1;
             auto real_seminar = total_mapping[match.second - 1];
@@ -143,8 +158,7 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
         }
 
 
-        vector<long> capacity_list(seminars.size());
-        // create new capacity list
+        // update capacity list
         for (auto &[_, seminar_id]: assignments) {
             capacity_list[seminar_id] = capacity_list[seminar_id] + 1;
         }
@@ -152,15 +166,13 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
         // check if students can be assigned to a better match
         for (auto &assignment : assignments) {
             auto [student_id, seminar_id] = assignment;
-
             auto student = students[student_id];
-            auto seminar = seminars[seminar_id];
 
             for (auto pref: student.priorities) {
                 if (pref == seminar_id) break;
 
-                auto current_capacity = capacity_list[seminar_id];
-                bool can_assign_more = current_capacity < seminar.capacity;
+                auto current_capacity = capacity_list[pref];
+                bool can_assign_more = current_capacity < seminars[pref].capacity;
                 if (can_assign_more) {
                     cerr << "Better match found" << endl;
                     capacity_list[seminar_id] = current_capacity + 1;
@@ -170,7 +182,15 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
         }
     }
 
-    cerr << "Unmatched count: " << unassigned.size() << endl;
+    // check if any student is still assigned to an l-house
+    for (auto &[_, seminar_id]: assignments) {
+        if (seminar_id >= max_seminar_count) {
+            cerr << "Student is assigned to l-house" << endl;
+            assignments.clear();
+            break;
+        }
+    }
+    cerr << "Unmatched count: " << max_seminar_count - assignments.size() << endl;
 
     return assignments;
 }
