@@ -8,6 +8,7 @@
 #include "./model/seminar.h"
 #include "./model/bigraph.h"
 #include "./model/hungarian.hpp"
+#include "./algorithms/Hungarian.h"
 
 using namespace std;
 using namespace models;
@@ -230,6 +231,46 @@ vector<pair<long, long>> computeHungarianMatching(const vector<student> &student
 }
 
 
+vector<pair<long, long>> computeOtherHungarianMatching(const vector<student> &students, vector<seminar> &seminars) {
+    vector<pair<long, long>> assignments;
+
+    auto [mapping, total_mapping] = getSeminarMapping(seminars.size(), seminars);
+
+    auto row_length = total_mapping.size();
+    auto col_length = students.size();
+
+    vector<vector<double>> cost_matrix(col_length);
+
+    for (int i = 0; i < students.size(); ++i) {
+        auto &student = students[i];
+
+        // set default cost to max seminar count
+        vector<double> cost_row(row_length, INT32_MAX);
+
+        for (int j = 0; j < student.priorities.size(); ++j) {
+            auto pref = student.priorities[j];
+            auto mapped_indices = mapping[pref];
+
+            for (auto index: mapped_indices) {
+                cost_row[index] = j;
+            }
+        }
+
+        cost_matrix[i] = cost_row;
+    }
+
+    vector<int> assignment;
+    HungarianAlgorithm algo;
+    algo.Solve(cost_matrix, assignment);
+
+    for (int k = 0; k < assignment.size(); ++k) {
+        auto mapped = total_mapping[assignment[k]];
+        assignments.emplace_back(k, mapped);
+    }
+
+    return assignments;
+}
+
 pair<vector<student>, vector<seminar>> parseInput() {
     int n, m;
     cin >> n >> m;
@@ -266,7 +307,7 @@ pair<vector<student>, vector<seminar>> parseInput() {
 
 int main() {
     auto input = parseInput();
-    auto result = computeHungarianMatching(input.first, input.second);
+    auto result = computeOtherHungarianMatching(input.first, input.second);
 
     //auto result = popularCHA(input.first, input.second);
 
