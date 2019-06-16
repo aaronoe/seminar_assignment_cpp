@@ -305,11 +305,22 @@ pair<vector<student>, vector<seminar>> parseInput() {
     return make_pair(students, seminars);
 }
 
-int main() {
-    auto input = parseInput();
-    auto result = computeOtherHungarianMatching(input.first, input.second);
+int main(int argc, char *argv[]) {
+    string algorithm = "rsd";
+    if (argc == 2) {
+        algorithm = argv[1];
+    }
 
-    //auto result = popularCHA(input.first, input.second);
+    auto input = parseInput();
+
+    vector<pair<long, long>> result;
+    if (algorithm == "hungarian") {
+        result = computeOtherHungarianMatching(input.first, input.second);
+    } else if (algorithm == "popular") {
+        result = popularCHA(input.first, input.second);
+    } else if (algorithm == "rsd") {
+        result = computeGreedy(input.first, input.second);
+    }
 
     cout << result.size() << endl;
     for (auto matching : result) {
