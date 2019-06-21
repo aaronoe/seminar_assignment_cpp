@@ -9,6 +9,7 @@
 #include "./model/bigraph.h"
 #include "./model/hungarian.hpp"
 #include "./algorithms/Hungarian.h"
+#include "./algorithms/TopTradingCycle.h"
 
 using namespace std;
 using namespace models;
@@ -57,12 +58,70 @@ pair<vector<vector<int>>, vector<long>> getSeminarMapping(long total_count, vect
     return make_pair(seminar_mapping, total_mapping);
 }
 
+vector<pair<long, long>> computeMaxParetoMatching(vector<student> students, vector<seminar> seminars) {
+    vector<pair<long, long>> assignments;
+    vector<long> capacity_list(seminars.size(), 0);
+    auto [mapping, total_mapping] = getSeminarMapping(seminars.size(), seminars);
 
-vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> seminars) {
+    int total_capacity_available = 0;
+    for (auto &seminar: seminars) {
+        total_capacity_available += seminar.capacity;
+    }
+
+    // PHASE 1:
+    BipGraph graph(static_cast<int>(students.size()), total_capacity_available);
+    for (int i = 0; i < students.size(); ++i) {
+        auto student = students[i];
+        for (auto pref: student.priorities) {
+            for (int id: mapping[pref]) {
+                // note: the algorithm starts counting at 1
+                graph.addEdge(i + 1, id + 1);
+            }
+        }
+    }
+
+    vector<pair<long, long>> matching = graph.hopcroftKarp();
+
+    for (auto &match: matching) {
+        auto first = match.first - 1;
+        auto real_seminar = total_mapping[match.second - 1];
+        capacity_list[real_seminar] = capacity_list[real_seminar] + 1;
+
+        assignments.emplace_back(first, real_seminar);
+    }
+
+    vector<long> current_ownership(students.size(), -1);
+    // PHASE 2: check if students can be assigned to a better match
+    for (auto &assignment : assignments) {
+        auto [student_id, seminar_id] = assignment;
+        auto student = students[student_id];
+
+        for (auto pref: student.priorities) {
+            if (pref == seminar_id) break;
+
+            auto current_capacity = capacity_list[pref];
+            bool can_assign_more = current_capacity < seminars[pref].capacity;
+            if (can_assign_more) {
+                cerr << "Better match found" << endl;
+                capacity_list[seminar_id] = current_capacity + 1;
+                assignment = make_pair(student_id, pref);
+            }
+        }
+
+        current_ownership[assignment.first] = assignment.second;
+    }
+
+    // PHASE 3: TTC
+    getTopTradingCycle(students, seminars.size(), current_ownership);
+
+    return assignments;
+}
+
+vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vector<seminar> seminars) {
     auto max_seminar_count = seminars.size();
     vector<int> f_house_count(seminars.size(), 0);
     vector<pair<long, long>> assignments;
-    vector<long> capacity_list(seminars.size());
+    vector<long> capacity_list(seminars.size(), 0);
 
     for (auto &student : students) {
         auto first = student.priorities[0];
@@ -186,11 +245,10 @@ vector<pair<long, long>> popularCHA(vector<student> students, vector<seminar> se
     for (auto &[_, seminar_id]: assignments) {
         if (seminar_id >= max_seminar_count) {
             cerr << "Student is assigned to l-house" << endl;
-            assignments.clear();
-            break;
+            cout << "0" << endl;
+            exit(1);
         }
     }
-    cerr << "Unmatched count: " << max_seminar_count - assignments.size() << endl;
 
     return assignments;
 }
@@ -326,7 +384,7 @@ pair<vector<student>, vector<seminar>> parseInput() {
 }
 
 int main(int argc, char *argv[]) {
-    string algorithm = "rsd";
+    string algorithm = "popular";
     if (argc == 2) {
         algorithm = argv[1];
     }
@@ -337,9 +395,11 @@ int main(int argc, char *argv[]) {
     if (algorithm == "hungarian") {
         result = computeOtherHungarianMatching(input.first, input.second);
     } else if (algorithm == "popular") {
-        result = popularCHA(input.first, input.second);
+        result = computeMaxPopularMatching(input.first, input.second);
     } else if (algorithm == "rsd") {
         result = computeGreedy(input.first, input.second);
+    } else if (algorithm == "max-pareto") {
+        result = computeMaxParetoMatching(input.first, input.second);
     }
 
     cout << result.size() << endl;
