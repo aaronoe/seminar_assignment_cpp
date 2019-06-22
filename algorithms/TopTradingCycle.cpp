@@ -7,21 +7,23 @@
 #include "../model/student.h"
 #include "../model/graph.h"
 #include "set"
+#include <iostream>
 
 using namespace std;
 
-vertex getVertexInCycle(graph market) {
-    std::set<long> visited;
+set<long> getVertexInCycle(graph market) {
+    set<long> visited;
 
-    auto vertex = market.any_vertex();
+    auto start = market.any_vertex();
 
-    while (visited.find(vertex.vertex_id) == visited.end()) {
-        visited.insert(vertex.vertex_id);
-        auto next = vertex.anyNextVertexId();
-        vertex = market.get_vertex_by_id(next);
+    while (visited.find(start.vertex_id) == visited.end()) {
+        visited.insert(start.vertex_id);
+        auto next = start.anyNextVertexId();
+        if (next == -1) return set<long>();
+        start = market.get_vertex_by_id(next);
     }
 
-    return vertex;
+    return visited;
 }
 
 
@@ -61,19 +63,58 @@ void getTopTradingCycle(vector<models::student> &students, long seminar_count, v
     }
 
     // remove students already assigned to their first choice
-    for (int k = 0; k < students.size(); ++k) {
-        auto student = students[k];
+    for (auto &[student_id, vertex]: market.nodes()) {
+        auto student = students[student_id];
         if (student.priorities.empty()) continue;
 
-        // student k is assigned to first choice -> remove incident edges from graph
-        if (students[k].priorities[0] == initial_ownership[k]) {
-            market.remove(market.get_vertex_by_id(k));
+        if (student.priorities[0] == initial_ownership[student_id]) {
+            market.remove(vertex);
         }
     }
 
     vector<pair<long, long>> matching;
+    vector<long> current_preferred_index(initial_ownership.size(), 0);
 
     while (market.vertex_count() > 0) {
         auto cycle = getVertexInCycle(market);
+        // implement trade specified by cycle
+        if (cycle.size() > 1) {
+            cout << "implementing trade of size " << cycle.size() << endl;
+        }
+        if (cycle.size() > 1) {
+            for (auto &id: cycle) {
+                auto vertex = market.get_vertex_by_id(id);
+                auto student = students[id];
+                auto pref = student.priorities[current_preferred_index[id]];
+
+                matching.emplace_back(id, pref);
+                market.remove(vertex);
+            }
+        }
+
+        // update prefs and remove vertices
+        for (auto &[id, vertex]: market.nodes()) {
+            if (vertex.outgoing_edges.empty()) {
+                // the current seminar can't be swapped for, go to the next one
+                auto student = students[id];
+                current_preferred_index[id] += 1;
+
+                // preference is same as existing seminar
+                auto current_index = current_preferred_index[id];
+                if (student.priorities.size() <= current_index || student.priorities[current_index] == initial_ownership[id]) {
+                    market.remove(vertex);
+                    cout << "removing student" << endl;
+                    continue;
+                }
+
+                // otherwise set next seminar as preferred
+                auto pref = student.priorities[current_index];
+                auto ownerships = ownership_map[pref];
+
+                for (auto &owner: ownerships) {
+                    market.addEdge(id, owner);
+                }
+            }
+        }
     }
 }

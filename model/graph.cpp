@@ -12,10 +12,6 @@ long vertex::anyNextVertexId() {
     return value.second;
 }
 
-vertex::vertex(long vertex_id) {
-    this->vertex_id = vertex_id;
-}
-
 void vertex::addIngoingEdge(long source, long target){
     this->incoming_edges.insert(make_pair(source, target));
 }
@@ -26,7 +22,7 @@ void vertex::addOutgoingEdge(long source, long target) {
 
 graph::graph(std::vector<models::student> students) {
     for (auto &student : students) {
-        this->students.emplace_back(student.id);
+        this->students[student.id] = vertex(student.id);
     }
 }
 
@@ -41,7 +37,8 @@ long graph::vertex_count() {
 }
 
 vertex graph::any_vertex() {
-    return this->students[0];
+    auto first = this->students.begin();
+    return (*first).second;
 }
 
 vertex graph::get_vertex_by_id(long vertex_id) {
@@ -59,4 +56,9 @@ void graph::remove(vertex student) {
         this->students[edge.first].outgoing_edges.erase(edge);
         this->edges.erase(edge);
     }
+    this->students.erase(student.vertex_id);
+}
+
+unordered_map<long, vertex> graph::nodes() const {
+    return this->students;
 }

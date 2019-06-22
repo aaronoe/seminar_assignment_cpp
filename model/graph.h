@@ -2,31 +2,37 @@
 #define SEMINAR_ASSIGNMENT_GRAPH_H
 #include <vector>
 #include <set>
+#include <unordered_map>
 #include "student.h"
+
+using namespace std;
+using namespace models;
 
 class vertex {
 public:
     long vertex_id;
-    std::set<std::pair<long, long>> outgoing_edges;
-    std::set<std::pair<long, long>> incoming_edges;
+    set<pair<long, long>> outgoing_edges;
+    set<pair<long, long>> incoming_edges;
 
-    explicit vertex(long vertex_id);
+    vertex(const long student_id): vertex_id(student_id) {};
+    vertex() {};
     long anyNextVertexId();
     void addIngoingEdge(long source, long target);
     void addOutgoingEdge(long source, long target);
 };
 
 class graph {
-    std::vector<vertex> students;
-    std::set<std::pair<long, long>> edges;
+    unordered_map<long, vertex> students;
+    set<pair<long, long>> edges;
 
 public:
-    explicit graph(std::vector<models::student> students);
+    explicit graph(vector<student> students);
     void addEdge(long source, long target);
     long vertex_count();
     vertex any_vertex();
     vertex get_vertex_by_id(long vertex_id);
     void remove(vertex student);
+    unordered_map<long, vertex> nodes() const;
 };
 
 #endif //SEMINAR_ASSIGNMENT_GRAPH_H

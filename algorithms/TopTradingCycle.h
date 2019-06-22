@@ -10,7 +10,7 @@
 
 using namespace std;
 
-vertex getVertexInCycle(graph market);
+set<long> getVertexInCycle(graph market);
 
 void getTopTradingCycle(vector<models::student> &students, long seminar_count, vector<long> initial_ownership);
 
