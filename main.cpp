@@ -112,9 +112,7 @@ vector<pair<long, long>> computeMaxParetoMatching(vector<student> students, vect
     }
 
     // PHASE 3: TTC
-    getTopTradingCycle(students, seminars.size(), current_ownership);
-
-    return assignments;
+    return getTopTradingCycle(students, seminars.size(), current_ownership);
 }
 
 vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vector<seminar> seminars) {

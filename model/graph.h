@@ -3,6 +3,7 @@
 #include <vector>
 #include <set>
 #include <unordered_map>
+#include <stack>
 #include "student.h"
 
 using namespace std;
@@ -24,6 +25,8 @@ public:
 class graph {
     unordered_map<long, vertex> students;
     set<pair<long, long>> edges;
+    void SCCUtil(int u, int disc[], int low[], stack<int> *st, bool stackMember[],
+            const vector<long> &student_map, unordered_map<long, int> &reverse_map);
 
 public:
     explicit graph(vector<student> students);
@@ -31,8 +34,9 @@ public:
     long vertex_count();
     vertex any_vertex();
     vertex get_vertex_by_id(long vertex_id);
-    void remove(vertex student);
-    unordered_map<long, vertex> nodes() const;
+    void remove(long vertex_id);
+    unordered_map<long, vertex> &nodes();
+    void SCC();
 };
 
 #endif //SEMINAR_ASSIGNMENT_GRAPH_H

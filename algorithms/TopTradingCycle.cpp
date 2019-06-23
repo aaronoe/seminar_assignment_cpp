@@ -26,20 +26,8 @@ set<long> getVertexInCycle(graph market) {
     return visited;
 }
 
-
-/*
-std::vector<vertex> getCycle(graph &market) {
-    std::unordered_set<vertex> visited;
-    auto start_vertex = getVertexInCycle(market);
-
-    while (visited.find(start_vertex) != visited.end()) {
-        visited.insert(start_vertex);
-        start_vertex = market.get_vertex_by_id(start_vertex.anyNextVertexId());
-    }
-}
- */
-
-void getTopTradingCycle(vector<models::student> &students, long seminar_count, vector<long> initial_ownership) {
+vector<pair<long, long>> getTopTradingCycle(vector<models::student> &students, long seminar_count, vector<long> initial_ownership) {
+    vector<pair<long, long>> matching;
     graph market(students);
     vector<vector<long>> ownership_map(static_cast<unsigned long>(seminar_count));
 
@@ -63,23 +51,27 @@ void getTopTradingCycle(vector<models::student> &students, long seminar_count, v
     }
 
     // remove students already assigned to their first choice
-    for (auto &[student_id, vertex]: market.nodes()) {
-        auto student = students[student_id];
+    for (auto &student: students) {
         if (student.priorities.empty()) continue;
 
-        if (student.priorities[0] == initial_ownership[student_id]) {
-            market.remove(vertex);
+        if (student.priorities[0] == initial_ownership[student.id] || initial_ownership[student.id] == -1) {
+            market.remove(student.id);
+
+            auto seminar_id = initial_ownership[student.id];
+            if (seminar_id != -1) {
+                matching.emplace_back(student.id, seminar_id);
+            }
         }
     }
 
-    vector<pair<long, long>> matching;
     vector<long> current_preferred_index(initial_ownership.size(), 0);
 
     while (market.vertex_count() > 0) {
+        //market.SCC();
         auto cycle = getVertexInCycle(market);
         // implement trade specified by cycle
         if (cycle.size() > 1) {
-            cout << "implementing trade of size " << cycle.size() << endl;
+            cerr << "implementing trade of size " << cycle.size() << endl;
         }
         if (cycle.size() > 1) {
             for (auto &id: cycle) {
@@ -88,22 +80,27 @@ void getTopTradingCycle(vector<models::student> &students, long seminar_count, v
                 auto pref = student.priorities[current_preferred_index[id]];
 
                 matching.emplace_back(id, pref);
-                market.remove(vertex);
+                market.remove(vertex.vertex_id);
             }
         }
 
         // update prefs and remove vertices
-        for (auto &[id, vertex]: market.nodes()) {
+        unordered_map<long, vertex> copy;
+        copy.insert(market.nodes().begin(), market.nodes().end());
+        for (auto &[id, vertex]: copy) {
             if (vertex.outgoing_edges.empty()) {
                 // the current seminar can't be swapped for, go to the next one
                 auto student = students[id];
-                current_preferred_index[id] += 1;
+                current_preferred_index[id] = current_preferred_index[id] + 1;
 
                 // preference is same as existing seminar
                 auto current_index = current_preferred_index[id];
                 if (student.priorities.size() <= current_index || student.priorities[current_index] == initial_ownership[id]) {
-                    market.remove(vertex);
-                    cout << "removing student" << endl;
+                    market.remove(vertex.vertex_id);
+                    auto seminar_id = initial_ownership[student.id];
+                    if (seminar_id != -1) {
+                        matching.emplace_back(student.id, seminar_id);
+                    }
                     continue;
                 }
 
@@ -117,4 +114,6 @@ void getTopTradingCycle(vector<models::student> &students, long seminar_count, v
             }
         }
     }
+
+    return matching;
 }
