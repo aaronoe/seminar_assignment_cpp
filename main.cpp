@@ -39,6 +39,27 @@ vector<pair<long, long>> computeGreedy(vector<student> students, vector<seminar>
     return assignments;
 }
 
+pair<vector<vector<int>>, vector<long>> getSeminarMappingWithPreallocations(long total_count,
+        vector<seminar> &available, vector<int> capacity_list) {
+
+    vector<vector<int>> seminar_mapping(static_cast<unsigned long>(total_count));
+    vector<long> total_mapping;
+    int counter = 0;
+
+    for (seminar &seminar: available) {
+        vector<int> ids(static_cast<unsigned long>(seminar.capacity - capacity_list[seminar.id]));
+
+        for (int i = 0; i < seminar.capacity - capacity_list[seminar.id]; ++i) {
+            ids[i] = counter++;
+            total_mapping.push_back(seminar.id);
+        }
+
+        seminar_mapping[seminar.id] = ids;
+    }
+
+    return make_pair(seminar_mapping, total_mapping);
+}
+
 pair<vector<vector<int>>, vector<long>> getSeminarMapping(long total_count, vector<seminar> &available) {
     vector<vector<int>> seminar_mapping(static_cast<unsigned long>(total_count));
     vector<long> total_mapping;
@@ -103,7 +124,8 @@ vector<pair<long, long>> computeMaxParetoMatching(vector<student> students, vect
             bool can_assign_more = current_capacity < seminars[pref].capacity;
             if (can_assign_more) {
                 cerr << "Better match found" << endl;
-                capacity_list[seminar_id] = current_capacity + 1;
+                capacity_list[pref] = current_capacity + 1;
+                capacity_list[seminar_id] = capacity_list[seminar_id] - 1;
                 assignment = make_pair(student_id, pref);
             }
         }
@@ -115,11 +137,11 @@ vector<pair<long, long>> computeMaxParetoMatching(vector<student> students, vect
     return getTopTradingCycle(students, seminars.size(), current_ownership);
 }
 
-vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vector<seminar> seminars) {
+vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vector<seminar> seminars, bool modified) {
     auto max_seminar_count = seminars.size();
     vector<int> f_house_count(seminars.size(), 0);
     vector<pair<long, long>> assignments;
-    vector<long> capacity_list(seminars.size(), 0);
+    vector<int> capacity_list(seminars.size(), 0);
 
     for (auto &student : students) {
         auto first = student.priorities[0];
@@ -165,11 +187,12 @@ vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vec
 
             if (f_value < capacity) {
                 s_house_id = seminar;
+                cerr << "f-house-position: " << i << endl;
                 break;
             }
         }
 
-        if (s_house_id == -1) {
+        if (s_house_id == -1 && !modified) {
             auto l_house_id = seminars.size();
             auto l_house = seminar(l_house_id, 1);
             total_capacity_available += 1;
@@ -182,7 +205,7 @@ vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vec
 
     if (!unassigned.empty() && total_capacity_available > 0) {
         // Expand list of seminars by capacity
-        auto [mapping, total_mapping] = getSeminarMapping(seminars.size(), available_seminars);
+        auto [mapping, total_mapping] = getSeminarMappingWithPreallocations(seminars.size(), available_seminars, capacity_list);
 
         BipGraph graph(static_cast<int>(unassigned.size()), total_capacity_available);
         for (int i = 0; i < unassigned.size(); ++i) {
@@ -193,6 +216,7 @@ vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vec
             for (int id: mapping[prefs.first]) {
                 graph.addEdge(i + 1, id + 1);
             }
+            if (prefs.second == -1) continue;
             for (int id: mapping[prefs.second]) {
                 graph.addEdge(i + 1, id + 1);
             }
@@ -200,20 +224,24 @@ vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vec
 
         vector<pair<long, long>> matching = graph.hopcroftKarp();
         // check if matching is agent complete
-        if (matching.size() != unassigned.size()) {
+        if (!modified && matching.size() != unassigned.size()) {
             cerr << "matching is not agent complete" << endl;
             assignments.clear();
             return assignments;
         }
 
         for (auto &match: matching) {
-            auto first = match.first - 1;
+            auto matched_student = unassigned[match.first - 1];
             auto real_seminar = total_mapping[match.second - 1];
             cerr << "Mapped Value: " << match.second - 1 << " - Real: " << total_mapping[match.second - 1] << endl;
 
-            assignments.emplace_back(first, real_seminar);
+            assignments.emplace_back(matched_student.id, real_seminar);
         }
 
+        // reset capacity list before setting it
+        for (auto &seminar: seminars) {
+            capacity_list[seminar.id] = 0;
+        }
 
         // update capacity list
         for (auto &[_, seminar_id]: assignments) {
@@ -232,7 +260,8 @@ vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vec
                 bool can_assign_more = current_capacity < seminars[pref].capacity;
                 if (can_assign_more) {
                     cerr << "Better match found" << endl;
-                    capacity_list[seminar_id] = current_capacity + 1;
+                    capacity_list[pref] = current_capacity + 1;
+                    capacity_list[seminar_id] = capacity_list[seminar_id] - 1;
                     assignment = make_pair(student_id, pref);
                 }
             }
@@ -393,7 +422,9 @@ int main(int argc, char *argv[]) {
     if (algorithm == "hungarian") {
         result = computeOtherHungarianMatching(input.first, input.second);
     } else if (algorithm == "popular") {
-        result = computeMaxPopularMatching(input.first, input.second);
+        result = computeMaxPopularMatching(input.first, input.second, false);
+    } else if (algorithm == "popular-modified") {
+        result = computeMaxPopularMatching(input.first, input.second, true);
     } else if (algorithm == "rsd") {
         result = computeGreedy(input.first, input.second);
     } else if (algorithm == "max-pareto") {
