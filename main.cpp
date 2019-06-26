@@ -7,9 +7,8 @@
 #include "./model/student.h"
 #include "./model/seminar.h"
 #include "./model/bigraph.h"
-#include "./model/hungarian.hpp"
-#include "./algorithms/Hungarian.h"
-#include "./algorithms/TopTradingCycle.h"
+#include "./utils/Hungarian.h"
+#include "./utils/TopTradingCycle.h"
 
 using namespace std;
 using namespace models;
@@ -40,13 +39,14 @@ vector<pair<long, long>> computeGreedy(vector<student> students, vector<seminar>
 }
 
 pair<vector<vector<int>>, vector<long>> getSeminarMappingWithPreallocations(long total_count,
-        vector<seminar> &available, vector<int> capacity_list) {
+                                                                            const vector<seminar> &available,
+                                                                            const vector<int> &capacity_list) {
 
     vector<vector<int>> seminar_mapping(static_cast<unsigned long>(total_count));
     vector<long> total_mapping;
     int counter = 0;
 
-    for (seminar &seminar: available) {
+    for (auto &seminar: available) {
         vector<int> ids(static_cast<unsigned long>(seminar.capacity - capacity_list[seminar.id]));
 
         for (int i = 0; i < seminar.capacity - capacity_list[seminar.id]; ++i) {
@@ -60,12 +60,12 @@ pair<vector<vector<int>>, vector<long>> getSeminarMappingWithPreallocations(long
     return make_pair(seminar_mapping, total_mapping);
 }
 
-pair<vector<vector<int>>, vector<long>> getSeminarMapping(long total_count, vector<seminar> &available) {
+pair<vector<vector<int>>, vector<long>> getSeminarMapping(long total_count, const vector<seminar> &available) {
     vector<vector<int>> seminar_mapping(static_cast<unsigned long>(total_count));
     vector<long> total_mapping;
     int counter = 0;
 
-    for (seminar &seminar: available) {
+    for (auto &seminar: available) {
         vector<int> ids(static_cast<unsigned long>(seminar.capacity));
 
         for (int i = 0; i < seminar.capacity; ++i) {
@@ -79,10 +79,10 @@ pair<vector<vector<int>>, vector<long>> getSeminarMapping(long total_count, vect
     return make_pair(seminar_mapping, total_mapping);
 }
 
-vector<pair<long, long>> computeMaxParetoMatching(vector<student> students, vector<seminar> seminars) {
+vector<pair<long, long>> computeMaxParetoMatching(const vector<student> &students, const vector<seminar> &seminars) {
     vector<pair<long, long>> assignments;
     vector<long> capacity_list(seminars.size(), 0);
-    auto [mapping, total_mapping] = getSeminarMapping(seminars.size(), seminars);
+    auto[mapping, total_mapping] = getSeminarMapping(seminars.size(), seminars);
 
     int total_capacity_available = 0;
     for (auto &seminar: seminars) {
@@ -114,7 +114,7 @@ vector<pair<long, long>> computeMaxParetoMatching(vector<student> students, vect
     vector<long> current_ownership(students.size(), -1);
     // PHASE 2: check if students can be assigned to a better match
     for (auto &assignment : assignments) {
-        auto [student_id, seminar_id] = assignment;
+        auto[student_id, seminar_id] = assignment;
         auto student = students[student_id];
 
         for (auto pref: student.priorities) {
@@ -137,7 +137,11 @@ vector<pair<long, long>> computeMaxParetoMatching(vector<student> students, vect
     return getTopTradingCycle(students, seminars.size(), current_ownership);
 }
 
-vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vector<seminar> seminars, bool modified) {
+vector<pair<long, long>> computeMaxPopularMatching(
+        const vector<student> &students,
+        vector<seminar> seminars,
+        bool modified
+) {
     auto max_seminar_count = seminars.size();
     vector<int> f_house_count(seminars.size(), 0);
     vector<pair<long, long>> assignments;
@@ -205,7 +209,8 @@ vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vec
 
     if (!unassigned.empty() && total_capacity_available > 0) {
         // Expand list of seminars by capacity
-        auto [mapping, total_mapping] = getSeminarMappingWithPreallocations(seminars.size(), available_seminars, capacity_list);
+        auto[mapping, total_mapping] = getSeminarMappingWithPreallocations(seminars.size(), available_seminars,
+                                                                           capacity_list);
 
         BipGraph graph(static_cast<int>(unassigned.size()), total_capacity_available);
         for (int i = 0; i < unassigned.size(); ++i) {
@@ -250,7 +255,7 @@ vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vec
 
         // check if students can be assigned to a better match
         for (auto &assignment : assignments) {
-            auto [student_id, seminar_id] = assignment;
+            auto[student_id, seminar_id] = assignment;
             auto student = students[student_id];
 
             for (auto pref: student.priorities) {
@@ -280,66 +285,10 @@ vector<pair<long, long>> computeMaxPopularMatching(vector<student> students, vec
     return assignments;
 }
 
-vector<pair<long, long>> computeHungarianMatching(const vector<student> &students, vector<seminar> &seminars) {
+vector<pair<long, long>> computeHungarianMatching(const vector<student> &students, const vector<seminar> &seminars) {
     vector<pair<long, long>> assignments;
 
-    auto [mapping, total_mapping] = getSeminarMapping(seminars.size(), seminars);
-
-    auto row_length = total_mapping.size();
-    auto col_length = students.size();
-
-    vector<vector<int>> cost_matrix(col_length);
-
-    for (int i = 0; i < students.size(); ++i) {
-        auto &student = students[i];
-
-        // set default cost to max seminar count
-        vector<int> cost_row(row_length, INT32_MAX);
-
-        for (int j = 0; j < student.priorities.size(); ++j) {
-            auto pref = student.priorities[j];
-            auto mapped_indices = mapping[pref];
-
-            for (auto index: mapped_indices) {
-                cost_row[index] = j;
-            }
-        }
-
-        cost_matrix[i] = cost_row;
-    }
-
-    auto matching = Hungarian::Solve(cost_matrix, Hungarian::MODE_MINIMIZE_COST);
-
-    if (!matching.success) return assignments;
-    // extract result
-    for (int k = 0; k < col_length; ++k) {
-        auto row = matching.assignment[k];
-
-        int matched_index = -1;
-        for (int i = 0; i < row_length; ++i) {
-            if (row[i] == 1) {
-                matched_index = i;
-                break;
-            }
-        }
-
-        if (matched_index != -1) {
-            auto mapped = total_mapping[matched_index];
-
-            assignments.emplace_back(k, mapped);
-        }
-    }
-
-    cerr << "Success: " << matching.success << endl;
-
-    return assignments;
-}
-
-
-vector<pair<long, long>> computeOtherHungarianMatching(const vector<student> &students, vector<seminar> &seminars) {
-    vector<pair<long, long>> assignments;
-
-    auto [mapping, total_mapping] = getSeminarMapping(seminars.size(), seminars);
+    auto[mapping, total_mapping] = getSeminarMapping(seminars.size(), seminars);
 
     auto row_length = total_mapping.size();
     auto col_length = students.size();
@@ -400,8 +349,8 @@ pair<vector<student>, vector<seminar>> parseInput() {
         int seminar_id;
 
         for (int i = 0; i < preference_length; ++i) {
-             cin >> seminar_id;
-             preference_list[i] = seminar_id;
+            cin >> seminar_id;
+            preference_list[i] = seminar_id;
         }
 
         students.emplace_back(student_id, preference_list);
@@ -411,7 +360,7 @@ pair<vector<student>, vector<seminar>> parseInput() {
 }
 
 int main(int argc, char *argv[]) {
-    string algorithm = "popular";
+    string algorithm = "rsd";
     if (argc == 2) {
         algorithm = argv[1];
     }
@@ -420,7 +369,7 @@ int main(int argc, char *argv[]) {
 
     vector<pair<long, long>> result;
     if (algorithm == "hungarian") {
-        result = computeOtherHungarianMatching(input.first, input.second);
+        result = computeHungarianMatching(input.first, input.second);
     } else if (algorithm == "popular") {
         result = computeMaxPopularMatching(input.first, input.second, false);
     } else if (algorithm == "popular-modified") {

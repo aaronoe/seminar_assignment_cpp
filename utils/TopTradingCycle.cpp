@@ -11,7 +11,7 @@
 
 using namespace std;
 
-set<long> getVertexInCycle(graph market) {
+set<long> getVertexInCycle(const graph &market) {
     set<long> visited;
 
     auto start = market.any_vertex();
@@ -26,7 +26,11 @@ set<long> getVertexInCycle(graph market) {
     return visited;
 }
 
-vector<pair<long, long>> getTopTradingCycle(vector<models::student> &students, long seminar_count, vector<long> initial_ownership) {
+vector<pair<long, long>> getTopTradingCycle(
+        const vector<models::student> &students,
+        long seminar_count,
+        const vector<long> &initial_ownership
+) {
     vector<pair<long, long>> matching;
     graph market(students);
     vector<vector<long>> ownership_map(static_cast<unsigned long>(seminar_count));
@@ -95,7 +99,8 @@ vector<pair<long, long>> getTopTradingCycle(vector<models::student> &students, l
 
                 // preference is same as existing seminar
                 auto current_index = current_preferred_index[id];
-                if (student.priorities.size() <= current_index || student.priorities[current_index] == initial_ownership[id]) {
+                if (student.priorities.size() <= current_index ||
+                    student.priorities[current_index] == initial_ownership[id]) {
                     market.remove(vertex.vertex_id);
                     auto seminar_id = initial_ownership[student.id];
                     if (seminar_id != -1) {

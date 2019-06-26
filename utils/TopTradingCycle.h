@@ -10,8 +10,8 @@
 
 using namespace std;
 
-set<long> getVertexInCycle(graph market);
+set<long> getVertexInCycle(const graph &market);
 
-vector<pair<long, long>> getTopTradingCycle(vector<models::student> &students, long seminar_count, vector<long> initial_ownership);
+vector<pair<long, long>> getTopTradingCycle(const vector<models::student> &students, long seminar_count, const vector<long> &initial_ownership);
 
 #endif //SEMINAR_ASSIGNMENT_TOPTRADINGCYCLE_H
