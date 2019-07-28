@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <chrono>
 #include "./model/student.h"
 #include "./model/seminar.h"
 #include "./model/bigraph.h"
@@ -277,8 +278,7 @@ vector<pair<long, long>> computeMaxPopularMatching(
     for (auto &[_, seminar_id]: assignments) {
         if (seminar_id >= max_seminar_count) {
             cerr << "Student is assigned to l-house" << endl;
-            cout << "0" << endl;
-            exit(1);
+            return vector<pair<long, long>>();
         }
     }
 
@@ -367,6 +367,7 @@ int main(int argc, char *argv[]) {
 
     auto input = parseInput();
 
+    auto start = std::chrono::steady_clock::now();
     vector<pair<long, long>> result;
     if (algorithm == "hungarian") {
         result = computeHungarianMatching(input.first, input.second);
@@ -379,6 +380,9 @@ int main(int argc, char *argv[]) {
     } else if (algorithm == "max-pareto") {
         result = computeMaxParetoMatching(input.first, input.second);
     }
+
+    auto duration = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start);
+    cout << duration.count() << endl;
 
     cout << result.size() << endl;
     for (auto matching : result) {
