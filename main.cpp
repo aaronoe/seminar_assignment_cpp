@@ -5,11 +5,21 @@
 #include <map>
 #include <algorithm>
 #include <chrono>
+#include <assert.h>
 #include "./model/student.h"
 #include "./model/seminar.h"
 #include "./model/bigraph.h"
 #include "./utils/Hungarian.h"
 #include "./utils/TopTradingCycle.h"
+
+#define ASSERT(condition, message) \
+    do { \
+        if (! (condition)) { \
+            std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
+                      << " line " << __LINE__ << ": " << message << std::endl; \
+            std::terminate(); \
+        } \
+    } while (false)
 
 using namespace std;
 using namespace models;
@@ -318,6 +328,7 @@ vector<pair<long, long>> computeHungarianMatching(const vector<student> &student
     algo.Solve(cost_matrix, assignment);
 
     for (int k = 0; k < assignment.size(); ++k) {
+        if (assignment[k] < 0) continue;
         auto mapped = total_mapping[assignment[k]];
         assignments.emplace_back(k, mapped);
     }
@@ -326,15 +337,18 @@ vector<pair<long, long>> computeHungarianMatching(const vector<student> &student
 }
 
 pair<vector<student>, vector<seminar>> parseInput() {
+    char t;
     int n, m;
-    cin >> n >> m;
+    cin >> t >> n >> m;
+    ASSERT(t == 'd', "Invalid input format");
 
     // parse n seminars
     vector<seminar> seminars;
     long id;
     int capacity;
     for (int i = 0; i < n; ++i) {
-        cin >> id >> capacity;
+        cin >> t >> id >> capacity;
+        ASSERT(t == 't', "Invalid input format");
         seminars.emplace_back(id, capacity);
     }
 
@@ -343,7 +357,8 @@ pair<vector<student>, vector<seminar>> parseInput() {
     long student_id;
     int preference_length;
     for (int j = 0; j < m; ++j) {
-        cin >> student_id >> preference_length;
+        cin >> t >> student_id >> preference_length;
+        ASSERT(t == 's', "Invalid input format");
         vector<long> preference_list;
         preference_list.resize(static_cast<unsigned long>(preference_length));
         int seminar_id;

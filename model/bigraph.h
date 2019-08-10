@@ -30,7 +30,7 @@ public:
 
     // Adds augmenting path if there is one beginning
     // with u
-    bool dfs(int u);
+    bool dfs(int source);
 
     // Returns size of maximum matcing
     std::vector<std::pair<long, long>> hopcroftKarp();
