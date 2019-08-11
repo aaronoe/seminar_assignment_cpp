@@ -342,7 +342,7 @@ pair<vector<student>, vector<seminar>> parseInput() {
     cin >> t >> n >> m;
     ASSERT(t == 'd', "Invalid input format");
 
-    // parse n seminars
+    // parse seminars_capacity seminars
     vector<seminar> seminars;
     long id;
     int capacity;
@@ -352,7 +352,7 @@ pair<vector<student>, vector<seminar>> parseInput() {
         seminars.emplace_back(id, capacity);
     }
 
-    // parse m students
+    // parse student_count students
     vector<student> students;
     long student_id;
     int preference_length;

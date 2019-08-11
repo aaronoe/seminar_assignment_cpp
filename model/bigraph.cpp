@@ -1,3 +1,8 @@
+/*
+ * This algorithm has been adopted and slightly modified from:
+ * https://www.geeksforgeeks.org/hopcroft-karp-algorithm-for-maximum-matching-set-2-implementation/
+ */
+
 #include "bigraph.h"
 
 #include <iostream>
@@ -10,43 +15,43 @@ using namespace std;
  * @return pairs of matched students & seminars
  */
 vector<pair<long, long>> BipGraph::hopcroftKarp() {
-    // pairU[u] stores pair of u in matching where u
+    // students_matches[u] stores pair of u in matching where u
     // is a vertex on left side of Bipartite Graph.
-    // If u doesn't have any pair, then pairU[u] is NIL
-    pairU = new int[m + 1];
+    // If u doesn't have any pair, then students_matches[u] is NIL
+    students_matches = new int[student_count + 1];
 
-    // pairV[v] stores pair of v in matching. If v
-    // doesn't have any pair, then pairU[v] is NIL
-    pairV = new int[n + 1];
+    // seminars_matches[v] stores pair of v in matching. If v
+    // doesn't have any pair, then students_matches[v] is NIL
+    seminars_matches = new int[seminars_capacity + 1];
 
     // dist[u] stores distance of left side vertices
     // dist[u] is one more than dist[u'] if u is next
     // to u'in augmenting path
-    dist = new int[m + 1];
+    dist = new int[student_count + 1];
 
     // Initialize NIL as pair of all vertices
-    for (int u = 0; u < m; u++) {
-        pairU[u] = NIL;
+    for (int u = 0; u < student_count; u++) {
+        students_matches[u] = NIL;
     }
-    for (int v = 0; v < n; v++) {
-        pairV[v] = NIL;
+    for (int v = 0; v < seminars_capacity; v++) {
+        seminars_matches[v] = NIL;
     }
 
     int result = 0;
     while (bfs()) {
-        for (int u = 1; u <= m; u++) {
+        for (int u = 1; u <= student_count; u++) {
             // If current vertex is free and there is
             // an augmenting path from current vertex
-            if (pairU[u] == NIL && dfs(u)) {
+            if (students_matches[u] == NIL && dfs(u)) {
                 result++;
             }
         }
     }
 
     vector<pair<long, long>> assignments;
-    for (int i = 0; i < m + 1; ++i) {
-        if (pairU[i] != NIL) {
-            assignments.emplace_back(i, pairU[i]);
+    for (int i = 0; i < student_count + 1; ++i) {
+        if (students_matches[i] != NIL) {
+            assignments.emplace_back(i, students_matches[i]);
         }
     }
     return assignments;
@@ -57,9 +62,9 @@ bool BipGraph::bfs() {
     queue<int> queue;
 
     // First layer of vertices (set distance as 0)
-    for (int u = 1; u <= m; u++) {
+    for (int u = 1; u <= student_count; u++) {
         // If this is a free vertex, add it to queue
-        if (pairU[u] == NIL) {
+        if (students_matches[u] == NIL) {
             dist[u] = 0;
             queue.push(u);
         } else {
@@ -69,7 +74,7 @@ bool BipGraph::bfs() {
 
     dist[NIL] = INF;
 
-    // queue is going to contain vertices of left side only.
+    // queue is going to contain student vertices only.
     while (!queue.empty()) {
         int vertex = queue.front();
         queue.pop();
@@ -82,11 +87,11 @@ bool BipGraph::bfs() {
                 int v = *iterator;
 
                 // If pair of vertex is not considered so far
-                // (v, pairV[V]) is not yet explored edge.
-                if (dist[pairV[v]] == INF) {
+                // (v, seminars_matches[V]) is not yet explored edge.
+                if (dist[seminars_matches[v]] == INF) {
                     // Consider the pair and add it to queue
-                    dist[pairV[v]] = dist[vertex] + 1;
-                    queue.push(pairV[v]);
+                    dist[seminars_matches[v]] = dist[vertex] + 1;
+                    queue.push(seminars_matches[v]);
                 }
             }
         }
@@ -105,10 +110,10 @@ bool BipGraph::dfs(int source) {
             int v = *i;
 
             // Follow the distances set by BFS
-            if (dist[pairV[v]] == dist[source] + 1) {
-                if (dfs(pairV[v])) {
-                    pairV[v] = source;
-                    pairU[source] = v;
+            if (dist[seminars_matches[v]] == dist[source] + 1) {
+                if (dfs(seminars_matches[v])) {
+                    seminars_matches[v] = source;
+                    students_matches[source] = v;
                     return true;
                 }
             }
@@ -120,10 +125,10 @@ bool BipGraph::dfs(int source) {
     return true;
 }
 
-BipGraph::BipGraph(int m, int n) {
-    this->m = m;
-    this->n = n;
-    adj = new vector<int>[m + 1];
+BipGraph::BipGraph(int student_count, int total_capacity) {
+    this->student_count = student_count;
+    this->seminars_capacity = total_capacity;
+    adj = new vector<int>[student_count + 1];
 }
 
 void BipGraph::addEdge(int u, int v) {

@@ -1,3 +1,7 @@
+/*
+ * This code has been adopted 1:1 from https://github.com/mcximing/hungarian-algorithm-cpp
+ */
+
 ///////////////////////////////////////////////////////////////////////////////
 // Hungarian.cpp: Implementation file for Class HungarianAlgorithm.
 //

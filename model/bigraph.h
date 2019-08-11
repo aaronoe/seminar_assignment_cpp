@@ -1,3 +1,8 @@
+/*
+ * This algorithm has been adopted and slightly modified from:
+ * https://www.geeksforgeeks.org/hopcroft-karp-algorithm-for-maximum-matching-set-2-implementation/
+ */
+
 #ifndef SEMINAR_ASSIGNMENT_BIGRAPH_H
 #define SEMINAR_ASSIGNMENT_BIGRAPH_H
 #include <vector>
@@ -8,21 +13,21 @@
 
 class BipGraph
 {
-    // m and n are number of vertices on left
+    // student_count and seminars_capacity are number of vertices on left
     // and right sides of Bipartite Graph
-    int m, n;
+    int student_count, seminars_capacity;
 
     // adj[u] stores adjacents of left side
-    // vertex 'u'. The value of u ranges from 1 to m.
+    // vertex 'u'. The value of u ranges from 1 to student_count.
     // 0 is used for dummy vertex
     std::vector<int> *adj;
 
     // These are basically pointers to arrays needed
     // for hopcroftKarp()
-    int *pairU, *pairV, *dist;
+    int *students_matches, *seminars_matches, *dist;
 
 public:
-    BipGraph(int m, int n); // Constructor
+    BipGraph(int student_count, int total_capacity); // Constructor
     void addEdge(int u, int v); // To add edge
 
     // Returns true if there is an augmenting path
